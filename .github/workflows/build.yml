@@ -1,71 +1,13 @@
-name: Build .deb
+# Set up Theos if you haven't already
+git clone --recursive https://github.com/theos/theos.git ~/theos
+export THEOS=~/theos
 
-on:
-  workflow_dispatch:
+# Grab the rootless iOS 16 SDK
+curl -L https://github.com/theos/sdks/archive/master.zip -o sdks.zip
+unzip sdks.zip 'sdks-master/iPhoneOS16.5.sdk/*'
+mv sdks-master/iPhoneOS16.5.sdk $THEOS/sdks/
+rm -rf sdks.zip sdks-master
 
-jobs:
-  build:
-    name: Build iOS26Anim
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            bash \
-            curl \
-            sudo \
-            build-essential \
-            fakeroot \
-            rsync \
-            perl \
-            zip \
-            git \
-            libxml2 \
-            unzip
-
-      - name: Install Theos
-        env:
-          THEOS: ${{ github.workspace }}/theos
-          CI: "1"
-        run: |
-          export THEOS="$GITHUB_WORKSPACE/theos"
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-
-          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
-
-          echo "=== Toolchain ==="
-          "$THEOS/toolchain/linux/iphone/bin/clang" --version
-
-          echo "=== SDKs ==="
-          ls -la "$THEOS/sdks"
-
-      - name: Check SDK
-        run: |
-          echo "Checking iPhoneOS16.5.sdk..."
-          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
-          test -f "$THEOS/sdks/iPhoneOS16.5.sdk/System/Library/PrivateFrameworks/BackBoardServices.framework/BackBoardServices.tbd"
-
-      - name: Build
-        run: |
-          export THEOS="$GITHUB_WORKSPACE/theos"
-
-          make clean
-          make package FINALPACKAGE=1 messages=yes
-
-      - name: List packages
-        if: success()
-        run: |
-          find packages -type f -name "*.deb" -print
-
-      - name: Upload .deb
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deb-package
-          path: packages/*.deb
-          if-no-files-found: error
+# Build
+cd iOS26Anim
+make package FINALPACKAGE=1
