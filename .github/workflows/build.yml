@@ -1,6 +1,82 @@
-- name: ios26animon
-  run: |
-    export THEOS="$GITHUB_WORKSPACE/theos"
+name: Build iOS26Anim
 
-    make clean
-    make package FINALPACKAGE=1 messages=yes
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build rootless .deb
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            fakeroot \
+            git \
+            perl \
+            curl \
+            unzip \
+            rsync \
+            xz-utils \
+            zip
+
+      - name: Install Theos
+        run: |
+          git clone --recursive \
+            https://github.com/theos/theos.git \
+            "$GITHUB_WORKSPACE/theos"
+
+          echo "THEOS=$GITHUB_WORKSPACE/theos" >> "$GITHUB_ENV"
+
+      - name: Install Theos toolchain
+        run: |
+          bash "$THEOS/bin/install-theos"
+
+      - name: Install iPhoneOS SDK
+        run: |
+          cd "$THEOS"
+
+          curl -L \
+            https://github.com/theos/sdks/archive/refs/heads/master.zip \
+            -o sdks.zip
+
+          unzip -q sdks.zip \
+            'sdks-master/iPhoneOS16.5.sdk/*'
+
+          rm -rf sdks/iPhoneOS16.5.sdk
+
+          mv \
+            sdks-master/iPhoneOS16.5.sdk \
+            sdks/iPhoneOS16.5.sdk
+
+          rm -rf sdks.zip sdks-master
+
+      - name: Verify build environment
+        run: |
+          echo "THEOS=$THEOS"
+          ls -la "$THEOS/sdks"
+          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+
+      - name: Build rootless package
+        run: |
+          make clean
+          make package FINALPACKAGE=1 messages=yes
+
+      - name: Show package
+        run: |
+          echo "=== Generated packages ==="
+          find packages -type f -name "*.deb" -print
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS26Anim-rootless
+          path: packages/*.deb
+          if-no-files-found: error
