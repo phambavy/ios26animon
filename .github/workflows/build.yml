@@ -1,13 +1,6 @@
-# Set up Theos if you haven't already
-git clone --recursive https://github.com/theos/theos.git ~/theos
-export THEOS=~/theos
+- name: ios26animon
+  run: |
+    export THEOS="$GITHUB_WORKSPACE/theos"
 
-# Grab the rootless iOS 16 SDK
-curl -L https://github.com/theos/sdks/archive/master.zip -o sdks.zip
-unzip sdks.zip 'sdks-master/iPhoneOS16.5.sdk/*'
-mv sdks-master/iPhoneOS16.5.sdk $THEOS/sdks/
-rm -rf sdks.zip sdks-master
-
-# Build
-cd iOS26Anim
-make package FINALPACKAGE=1
+    make clean
+    make package FINALPACKAGE=1 messages=yes
